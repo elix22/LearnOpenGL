@@ -170,7 +170,7 @@ set(6.pbr
 set(7.in_practice
     1.debugging
     2.text_rendering
-    #3.2d_game
+    3.2d_game/0.full_source
 )
 
 set(GUEST_ARTICLES
@@ -218,7 +218,10 @@ function(create_project_from_sources chapter demo)
 		string(REPLACE "/" "_" replaced ${chapter})
 		set(NAME ${replaced})
 	else()
-		set(NAME "${chapter}__${demo}")
+		# Replace forward slashes in both chapter and demo names
+		string(REPLACE "/" "_" chapter_clean ${chapter})
+		string(REPLACE "/" "_" demo_clean ${demo})
+		set(NAME "${chapter_clean}__${demo_clean}")
 	endif()
     add_executable(${NAME} ${SOURCE})
     target_link_libraries(${NAME} ${LIBS})

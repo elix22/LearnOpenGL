@@ -55,8 +55,8 @@ bool GameLevel::IsCompleted()
 void GameLevel::init(std::vector<std::vector<unsigned int>> tileData, unsigned int levelWidth, unsigned int levelHeight)
 {
     // calculate dimensions
-    unsigned int height = tileData.size();
-    unsigned int width = tileData[0].size(); // note we can index vector at [0] since this function is only called if height > 0
+    unsigned int height = static_cast<unsigned int>(tileData.size());
+    unsigned int width = static_cast<unsigned int>(tileData[0].size()); // note we can index vector at [0] since this function is only called if height > 0
     float unit_width = levelWidth / static_cast<float>(width), unit_height = levelHeight / height; 
     // initialize level tiles based on tileData		
     for (unsigned int y = 0; y < height; ++y)

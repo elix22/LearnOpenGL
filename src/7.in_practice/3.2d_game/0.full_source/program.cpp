@@ -19,9 +19,9 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 // The Width of the screen
-const unsigned int SCREEN_WIDTH = 800;
+const unsigned int SCREEN_WIDTH = 1200;
 // The height of the screen
-const unsigned int SCREEN_HEIGHT = 600;
+const unsigned int SCREEN_HEIGHT = 900;
 
 Game Breakout(SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -50,14 +50,20 @@ int main(int argc, char *argv[])
     glfwSetKeyCallback(window, key_callback);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // Get actual framebuffer size (important for Retina displays)
+    int framebufferWidth, framebufferHeight;
+    glfwGetFramebufferSize(window, &framebufferWidth, &framebufferHeight);
+
     // OpenGL configuration
     // --------------------
-    glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glViewport(0, 0, framebufferWidth, framebufferHeight);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // initialize game
+    // Initialize game with actual framebuffer size
     // ---------------
+    Breakout.Width = framebufferWidth;
+    Breakout.Height = framebufferHeight;
     Breakout.Init();
 
     // deltaTime variables
@@ -121,4 +127,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     // make sure the viewport matches the new window dimensions; note that width and 
     // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
+    
+    // Update game dimensions to match new framebuffer size
+    Breakout.Width = width;
+    Breakout.Height = height;
 }
