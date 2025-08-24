@@ -205,6 +205,12 @@ void Game::Update(float dt)
         {
             this->ResetLevel();
             this->State = GAME_MENU;
+            // Reset key processing state when returning to menu
+            this->KeysProcessed[GLFW_KEY_ENTER] = false;
+            this->KeysProcessed[GLFW_KEY_W] = false;
+            this->KeysProcessed[GLFW_KEY_S] = false;
+            // Clear all powerups when game is over
+            this->PowerUps.clear();
         }
         this->ResetPlayer();
     }
@@ -227,6 +233,8 @@ void Game::ProcessInput(float dt)
         {
             this->State = GAME_ACTIVE;
             this->KeysProcessed[GLFW_KEY_ENTER] = true;
+            // Clear any leftover powerups when starting a new game
+            this->PowerUps.clear();
         }
         if (this->Keys[GLFW_KEY_W] && !this->KeysProcessed[GLFW_KEY_W])
         {
@@ -250,6 +258,12 @@ void Game::ProcessInput(float dt)
             this->KeysProcessed[GLFW_KEY_ENTER] = true;
             Effects->Chaos = false;
             this->State = GAME_MENU;
+            // Reset key processing state when returning to menu
+            this->KeysProcessed[GLFW_KEY_ENTER] = false;
+            this->KeysProcessed[GLFW_KEY_W] = false;
+            this->KeysProcessed[GLFW_KEY_S] = false;
+            // Clear all powerups when returning to menu
+            this->PowerUps.clear();
         }
     }
     if (this->State == GAME_ACTIVE)
@@ -323,13 +337,13 @@ void Game::Render()
 void Game::ResetLevel()
 {
     if (this->Level == 0)
-        this->Levels[0].Load("levels/one.lvl", this->Width, this->Height / 2);
+        this->Levels[0].Load(FileSystem::getPath("resources/levels/one.lvl").c_str(), this->Width, this->Height / 2);
     else if (this->Level == 1)
-        this->Levels[1].Load("levels/two.lvl", this->Width, this->Height / 2);
+        this->Levels[1].Load(FileSystem::getPath("resources/levels/two.lvl").c_str(), this->Width, this->Height / 2);
     else if (this->Level == 2)
-        this->Levels[2].Load("levels/three.lvl", this->Width, this->Height / 2);
+        this->Levels[2].Load(FileSystem::getPath("resources/levels/three.lvl").c_str(), this->Width, this->Height / 2);
     else if (this->Level == 3)
-        this->Levels[3].Load("levels/four.lvl", this->Width, this->Height / 2);
+        this->Levels[3].Load(FileSystem::getPath("resources/levels/four.lvl").c_str(), this->Width, this->Height / 2);
 
     this->Lives = 3;
 }
