@@ -138,13 +138,13 @@ private:
 		}
 		aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-		vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+		vector<Texture> diffuseMaps = loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse", scene);
 		textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-		vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
+		vector<Texture> specularMaps = loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular", scene);
 		textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-		std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+		std::vector<Texture> normalMaps = loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal", scene);
 		textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
-		std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height");
+		std::vector<Texture> heightMaps = loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_height", scene);
 		textures.insert(textures.end(), heightMaps.begin(), heightMaps.end());
 
 		ExtractBoneWeightForVertices(vertices,mesh,scene);
@@ -242,10 +242,65 @@ private:
 
 		return textureID;
 	}
+
+	unsigned int TextureFromEmbedded(const aiTexture* embeddedTexture)
+	{
+		unsigned int textureID;
+		glGenTextures(1, &textureID);
+
+		int width, height, nrComponents;
+		unsigned char* data = nullptr;
+
+		// Check if texture is compressed (like PNG, JPG) or raw data
+		if (embeddedTexture->mHeight == 0)
+		{
+			// Compressed texture data (PNG, JPG, etc.)
+			data = stbi_load_from_memory(reinterpret_cast<unsigned char*>(embeddedTexture->pcData), 
+										embeddedTexture->mWidth, &width, &height, &nrComponents, 0);
+		}
+		else
+		{
+			// Raw texture data (ARGB8888)
+			width = embeddedTexture->mWidth;
+			height = embeddedTexture->mHeight;
+			nrComponents = 4; // ARGB
+			data = reinterpret_cast<unsigned char*>(embeddedTexture->pcData);
+		}
+
+		if (data)
+		{
+			GLenum format;
+			if (nrComponents == 1)
+				format = GL_RED;
+			else if (nrComponents == 3)
+				format = GL_RGB;
+			else if (nrComponents == 4)
+				format = GL_RGBA;
+
+			glBindTexture(GL_TEXTURE_2D, textureID);
+			glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			// Only free if it was allocated by stb_image
+			if (embeddedTexture->mHeight == 0)
+				stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Failed to load embedded texture" << std::endl;
+		}
+
+		return textureID;
+	}
     
     // checks all material textures of a given type and loads the textures if they're not loaded yet.
     // the required info is returned as a Texture struct.
-    vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName)
+    vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type, string typeName, const aiScene* scene)
     {
         vector<Texture> textures;
         for(unsigned int i = 0; i < mat->GetTextureCount(type); i++)
@@ -266,7 +321,29 @@ private:
             if(!skip)
             {   // if texture hasn't been loaded already, load it
                 Texture texture;
-                texture.id = TextureFromFile(str.C_Str(), this->directory);
+                
+                // Check if texture path starts with '*' indicating embedded texture
+                string texPath = str.C_Str();
+                if(texPath[0] == '*')
+                {
+                    // Extract embedded texture index (remove '*' and convert to int)
+                    int textureIndex = atoi(texPath.substr(1).c_str());
+                    if(textureIndex < scene->mNumTextures)
+                    {
+                        texture.id = TextureFromEmbedded(scene->mTextures[textureIndex]);
+                    }
+                    else
+                    {
+                        std::cout << "Embedded texture index out of range: " << textureIndex << std::endl;
+                        continue;
+                    }
+                }
+                else
+                {
+                    // Load from file as before
+                    texture.id = TextureFromFile(str.C_Str(), this->directory);
+                }
+                
                 texture.type = typeName;
                 texture.path = str.C_Str();
                 textures.push_back(texture);
