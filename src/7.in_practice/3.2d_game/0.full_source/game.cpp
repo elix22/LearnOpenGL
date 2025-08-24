@@ -13,8 +13,7 @@
 #include <learnopengl/filesystem.h>
 
 #ifdef ENABLE_SOUND
-#include <irrKlang/irrKlang.h>
-using namespace irrklang;
+#include <SDL2/SDL_mixer.h>
 #endif
 
 #include "game.h"
@@ -34,7 +33,9 @@ BallObject        *Ball;
 ParticleGenerator *Particles;
 PostProcessor     *Effects;
 #ifdef ENABLE_SOUND
-ISoundEngine      *SoundEngine = createIrrKlangDevice();
+Mix_Music         *BackgroundMusic = nullptr;
+Mix_Chunk         *BleepSound = nullptr;
+Mix_Chunk         *PowerupSound = nullptr;
 #endif
 TextRenderer      *Text;
 
@@ -56,7 +57,20 @@ Game::~Game()
     delete Effects;
     delete Text;
 #ifdef ENABLE_SOUND
-    SoundEngine->drop();
+    if (BackgroundMusic) {
+        Mix_FreeMusic(BackgroundMusic);
+        BackgroundMusic = nullptr;
+    }
+    if (BleepSound) {
+        Mix_FreeChunk(BleepSound);
+        BleepSound = nullptr;
+    }
+    if (PowerupSound) {
+        Mix_FreeChunk(PowerupSound);
+        PowerupSound = nullptr;
+    }
+    Mix_CloseAudio();
+    Mix_Quit();
 #endif
 }
 
@@ -108,7 +122,33 @@ void Game::Init()
     Ball = new BallObject(ballPos, BALL_RADIUS, INITIAL_BALL_VELOCITY, ResourceManager::GetTexture("face"));
     // audio
 #ifdef ENABLE_SOUND
-    SoundEngine->play2D(FileSystem::getPath("resources/audio/breakout.mp3").c_str(), true);
+    // Initialize SDL2_mixer
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
+    } else {
+        // Load background music
+        BackgroundMusic = Mix_LoadMUS(FileSystem::getPath("resources/audio/breakout.mp3").c_str());
+        if (!BackgroundMusic) {
+            std::cout << "Failed to load background music! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        } else {
+            Mix_PlayMusic(BackgroundMusic, -1); // -1 means loop indefinitely
+        }
+        
+        // Load sound effects
+        BleepSound = Mix_LoadWAV(FileSystem::getPath("resources/audio/bleep.mp3").c_str());
+        if (!BleepSound) {
+            // Try .wav extension if .mp3 doesn't work
+            BleepSound = Mix_LoadWAV(FileSystem::getPath("resources/audio/bleep.wav").c_str());
+            if (!BleepSound) {
+                std::cout << "Failed to load bleep sound! SDL_mixer Error: " << Mix_GetError() << std::endl;
+            }
+        }
+        
+        PowerupSound = Mix_LoadWAV(FileSystem::getPath("resources/audio/powerup.wav").c_str());
+        if (!PowerupSound) {
+            std::cout << "Failed to load powerup sound! SDL_mixer Error: " << Mix_GetError() << std::endl;
+        }
+    }
 #endif
 }
 
@@ -425,7 +465,9 @@ void Game::DoCollisions()
                     box.Destroyed = true;
                     this->SpawnPowerUps(box);
 #ifdef ENABLE_SOUND
-                    SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
+                    if (BleepSound) {
+                        Mix_PlayChannel(-1, BleepSound, 0);
+                    }
 #endif
                 }
                 else
@@ -433,7 +475,9 @@ void Game::DoCollisions()
                     ShakeTime = 0.05f;
                     Effects->Shake = true;
 #ifdef ENABLE_SOUND
-                    SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
+                    if (BleepSound) {
+                        Mix_PlayChannel(-1, BleepSound, 0);
+                    }
 #endif
                 }
                 // collision resolution
@@ -481,7 +525,9 @@ void Game::DoCollisions()
                 powerUp.Destroyed = true;
                 powerUp.Activated = true;
 #ifdef ENABLE_SOUND
-                SoundEngine->play2D(FileSystem::getPath("resources/audio/powerup.wav").c_str(), false);
+                if (PowerupSound) {
+                    Mix_PlayChannel(-1, PowerupSound, 0);
+                }
 #endif
             }
         }
@@ -508,7 +554,9 @@ void Game::DoCollisions()
         Ball->Stuck = Ball->Sticky;
 
 #ifdef ENABLE_SOUND
-        SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.wav").c_str(), false);
+        if (BleepSound) {
+            Mix_PlayChannel(-1, BleepSound, 0);
+        }
 #endif
     }
 }
