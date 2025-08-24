@@ -277,4 +277,28 @@ foreach(GUEST_ARTICLE ${GUEST_ARTICLES})
 	create_project_from_sources(${GUEST_ARTICLE} "")
 endforeach(GUEST_ARTICLE)
 
-include_directories(${CMAKE_SOURCE_DIR}/includes)
+# Platform-specific include handling
+if(APPLE)
+    # On macOS, add Homebrew assimp first to ensure it takes priority
+    if(ASSIMP_INCLUDE_DIR)
+        include_directories(BEFORE ${ASSIMP_INCLUDE_DIR})
+        message(STATUS "Using Homebrew Assimp includes: ${ASSIMP_INCLUDE_DIR}")
+    endif()
+    
+    # Then include local directories except assimp
+    file(GLOB INCLUDE_SUBDIRS LIST_DIRECTORIES true "${CMAKE_SOURCE_DIR}/includes/*")
+    foreach(SUBDIR ${INCLUDE_SUBDIRS})
+        if(IS_DIRECTORY ${SUBDIR})
+            get_filename_component(DIRNAME ${SUBDIR} NAME)
+            if(NOT ${DIRNAME} STREQUAL "assimp")
+                include_directories(${SUBDIR})
+            endif()
+        endif()
+    endforeach()
+    
+    # Include base includes directory for individual header files
+    include_directories(${CMAKE_SOURCE_DIR}/includes)
+else()
+    # On Windows and Linux, include everything normally (including local assimp)
+    include_directories(${CMAKE_SOURCE_DIR}/includes)
+endif()
