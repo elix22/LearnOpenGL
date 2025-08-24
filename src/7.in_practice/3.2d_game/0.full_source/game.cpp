@@ -13,7 +13,12 @@
 #include <learnopengl/filesystem.h>
 
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+#include <irrKlang.h>
+using namespace irrklang;
+#else
 #include <SDL2/SDL_mixer.h>
+#endif
 #endif
 
 #include "game.h"
@@ -33,9 +38,13 @@ BallObject        *Ball;
 ParticleGenerator *Particles;
 PostProcessor     *Effects;
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+ISoundEngine *SoundEngine = nullptr;
+#else
 Mix_Music         *BackgroundMusic = nullptr;
 Mix_Chunk         *BleepSound = nullptr;
 Mix_Chunk         *PowerupSound = nullptr;
+#endif
 #endif
 TextRenderer      *Text;
 
@@ -57,6 +66,12 @@ Game::~Game()
     delete Effects;
     delete Text;
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+    if (SoundEngine) {
+        SoundEngine->drop();
+        SoundEngine = nullptr;
+    }
+#else
     if (BackgroundMusic) {
         Mix_FreeMusic(BackgroundMusic);
         BackgroundMusic = nullptr;
@@ -71,6 +86,7 @@ Game::~Game()
     }
     Mix_CloseAudio();
     Mix_Quit();
+#endif
 #endif
 }
 
@@ -122,6 +138,16 @@ void Game::Init()
     Ball = new BallObject(ballPos, BALL_RADIUS, INITIAL_BALL_VELOCITY, ResourceManager::GetTexture("face"));
     // audio
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+    // Initialize irrKlang
+    SoundEngine = createIrrKlangDevice();
+    if (!SoundEngine) {
+        std::cout << "Could not startup irrKlang audio engine!" << std::endl;
+    } else {
+        // Play background music
+        SoundEngine->play2D(FileSystem::getPath("resources/audio/breakout.mp3").c_str(), true);
+    }
+#else
     // Initialize SDL2_mixer
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
         std::cout << "SDL_mixer could not initialize! SDL_mixer Error: " << Mix_GetError() << std::endl;
@@ -149,6 +175,7 @@ void Game::Init()
             std::cout << "Failed to load powerup sound! SDL_mixer Error: " << Mix_GetError() << std::endl;
         }
     }
+#endif
 #endif
 }
 
@@ -465,9 +492,15 @@ void Game::DoCollisions()
                     box.Destroyed = true;
                     this->SpawnPowerUps(box);
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+                    if (SoundEngine) {
+                        SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
+                    }
+#else
                     if (BleepSound) {
                         Mix_PlayChannel(-1, BleepSound, 0);
                     }
+#endif
 #endif
                 }
                 else
@@ -475,9 +508,15 @@ void Game::DoCollisions()
                     ShakeTime = 0.05f;
                     Effects->Shake = true;
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+                    if (SoundEngine) {
+                        SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
+                    }
+#else
                     if (BleepSound) {
                         Mix_PlayChannel(-1, BleepSound, 0);
                     }
+#endif
 #endif
                 }
                 // collision resolution
@@ -525,9 +564,15 @@ void Game::DoCollisions()
                 powerUp.Destroyed = true;
                 powerUp.Activated = true;
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+                if (SoundEngine) {
+                    SoundEngine->play2D(FileSystem::getPath("resources/audio/powerup.wav").c_str(), false);
+                }
+#else
                 if (PowerupSound) {
                     Mix_PlayChannel(-1, PowerupSound, 0);
                 }
+#endif
 #endif
             }
         }
@@ -554,9 +599,15 @@ void Game::DoCollisions()
         Ball->Stuck = Ball->Sticky;
 
 #ifdef ENABLE_SOUND
+#ifdef USE_IRRKLANG
+        if (SoundEngine) {
+            SoundEngine->play2D(FileSystem::getPath("resources/audio/bleep.mp3").c_str(), false);
+        }
+#else
         if (BleepSound) {
             Mix_PlayChannel(-1, BleepSound, 0);
         }
+#endif
 #endif
     }
 }

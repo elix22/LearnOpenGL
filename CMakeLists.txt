@@ -30,17 +30,85 @@ message(STATUS "Found ASSIMP in ${ASSIMP_INCLUDE_DIR}")
 # message(STATUS "Found SOIL in ${SOIL_INCLUDE_DIR}")
 # find_package(GLEW REQUIRED)
 # message(STATUS "Found GLEW in ${GLEW_INCLUDE_DIR}")
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2_MIXER REQUIRED SDL2_mixer)
-message(STATUS "Found SDL2_mixer in ${SDL2_MIXER_INCLUDE_DIRS}")
-add_definitions(-DENABLE_SOUND)
+
+# Find SDL2_mixer with cross-platform support
+if(WIN32)
+    # On Windows, look for SDL2_mixer in standard locations first
+    find_path(SDL2_MIXER_INCLUDE_DIR SDL_mixer.h
+        HINTS ${CMAKE_SOURCE_DIR}/includes
+        PATH_SUFFIXES SDL2
+    )
+    find_library(SDL2_MIXER_LIBRARY
+        NAMES SDL2_mixer
+        HINTS ${CMAKE_SOURCE_DIR}/lib
+    )
+    if(SDL2_MIXER_INCLUDE_DIR AND SDL2_MIXER_LIBRARY)
+        set(SDL2_MIXER_FOUND TRUE)
+        set(SDL2_MIXER_LIBRARIES ${SDL2_MIXER_LIBRARY})
+        set(SDL2_MIXER_INCLUDE_DIRS ${SDL2_MIXER_INCLUDE_DIR})
+        message(STATUS "Found SDL2_mixer: ${SDL2_MIXER_LIBRARY}")
+    else()
+        # Fallback to irrKlang if SDL2_mixer not found on Windows
+        find_path(IRRKLANG_INCLUDE_DIR irrKlang.h
+            HINTS ${CMAKE_SOURCE_DIR}/includes
+            PATH_SUFFIXES irrKlang
+        )
+        find_library(IRRKLANG_LIBRARY
+            NAMES irrKlang
+            HINTS ${CMAKE_SOURCE_DIR}/lib
+        )
+        if(IRRKLANG_INCLUDE_DIR AND IRRKLANG_LIBRARY)
+            set(IRRKLANG_FOUND TRUE)
+            message(STATUS "SDL2_mixer not found, using irrKlang fallback: ${IRRKLANG_LIBRARY}")
+        endif()
+    endif()
+else()
+    # On Unix-like systems (Linux/macOS), try pkg-config first
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(SDL2_MIXER SDL2_mixer)
+    endif()
+    
+    # If pkg-config didn't work, try manual search
+    if(NOT SDL2_MIXER_FOUND)
+        find_path(SDL2_MIXER_INCLUDE_DIR SDL_mixer.h
+            HINTS /usr/local/include /opt/homebrew/include
+            PATH_SUFFIXES SDL2
+        )
+        find_library(SDL2_MIXER_LIBRARY
+            NAMES SDL2_mixer
+            HINTS /usr/local/lib /opt/homebrew/lib
+        )
+        if(SDL2_MIXER_INCLUDE_DIR AND SDL2_MIXER_LIBRARY)
+            set(SDL2_MIXER_FOUND TRUE)
+            set(SDL2_MIXER_LIBRARIES ${SDL2_MIXER_LIBRARY})
+            set(SDL2_MIXER_INCLUDE_DIRS ${SDL2_MIXER_INCLUDE_DIR})
+        endif()
+    endif()
+endif()
+
+if(SDL2_MIXER_FOUND)
+    message(STATUS "Found SDL2_mixer in ${SDL2_MIXER_INCLUDE_DIRS}")
+    add_definitions(-DENABLE_SOUND)
+elseif(WIN32 AND IRRKLANG_FOUND)
+    message(STATUS "Found irrKlang in ${IRRKLANG_INCLUDE_DIR}")
+    add_definitions(-DENABLE_SOUND -DUSE_IRRKLANG)
+else()
+    message(WARNING "No audio library found - audio will be disabled")
+endif()
+
 if(APPLE)
   find_package(Freetype REQUIRED)
   message(STATUS "Found Freetype in ${FREETYPE_INCLUDE_DIRS}")
 endif(APPLE)
 
 if(WIN32)
-  set(LIBS glfw3 opengl32 assimp freetype irrKlang)
+  set(LIBS glfw3 opengl32 assimp freetype)
+  if(SDL2_MIXER_FOUND)
+    set(LIBS ${LIBS} ${SDL2_MIXER_LIBRARIES})
+  elseif(IRRKLANG_FOUND)
+    set(LIBS ${LIBS} ${IRRKLANG_LIBRARY})
+  endif()
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 elseif(UNIX AND NOT APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
@@ -50,6 +118,9 @@ elseif(UNIX AND NOT APPLE)
   # note that the order is important for setting the libs
   # use pkg-config --libs $(pkg-config --print-requires --print-requires-private glfw3) in a terminal to confirm
   set(LIBS ${GLFW3_LIBRARY} X11 Xrandr Xinerama Xi Xxf86vm Xcursor GL dl pthread freetype ${ASSIMP_LIBRARY})
+  if(SDL2_MIXER_FOUND)
+    set(LIBS ${LIBS} ${SDL2_MIXER_LIBRARIES})
+  endif()
   set (CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -ldl")
 elseif(APPLE)
   INCLUDE_DIRECTORIES(/System/Library/Frameworks)
@@ -60,7 +131,9 @@ elseif(APPLE)
   MARK_AS_ADVANCED(COCOA_LIBRARY OpenGL_LIBRARY)
   SET(APPLE_LIBS ${COCOA_LIBRARY} ${IOKit_LIBRARY} ${OpenGL_LIBRARY} ${CoreVideo_LIBRARY})
   SET(APPLE_LIBS ${APPLE_LIBS} ${GLFW3_LIBRARY} ${ASSIMP_LIBRARY} ${FREETYPE_LIBRARIES})
-  SET(APPLE_LIBS ${APPLE_LIBS} ${SDL2_MIXER_LIBRARIES})
+  if(SDL2_MIXER_FOUND)
+    SET(APPLE_LIBS ${APPLE_LIBS} ${SDL2_MIXER_LIBRARIES})
+  endif()
   set(LIBS ${LIBS} ${APPLE_LIBS})
 else()
   set(LIBS )
@@ -294,7 +367,7 @@ if(APPLE)
     endif()
     
     # Add SDL2_mixer include directories
-    if(SDL2_MIXER_INCLUDE_DIRS)
+    if(SDL2_MIXER_FOUND AND SDL2_MIXER_INCLUDE_DIRS)
         include_directories(${SDL2_MIXER_INCLUDE_DIRS})
         message(STATUS "Using SDL2_mixer includes: ${SDL2_MIXER_INCLUDE_DIRS}")
     endif()
