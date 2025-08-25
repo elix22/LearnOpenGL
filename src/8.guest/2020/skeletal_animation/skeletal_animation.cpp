@@ -87,8 +87,8 @@ int main()
 	
 	// load models
 	// -----------
-	Model ourModel(FileSystem::getPath("resources/objects/vampire/dancing_vampire.dae"));
-	Animation danceAnimation(FileSystem::getPath("resources/objects/vampire/dancing_vampire.dae"),&ourModel);
+	Model ourModel(FileSystem::getPath("resources/objects/vampire/dancing_vampire.glb"));
+	Animation danceAnimation(FileSystem::getPath("resources/objects/vampire/dancing_vampire.glb"),&ourModel);
 	Animator animator(&danceAnimation);
 
 

@@ -10,6 +10,7 @@
 #include <learnopengl/camera.h>
 #include <learnopengl/model.h>
 
+
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -82,9 +83,11 @@ int main()
 
     // load models
     // -----------
-    Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
-
+//    Model ourModel(FileSystem::getPath("resources/objects/backpack/backpack.obj"));
     
+    Model ourModel(FileSystem::getPath("resources/objects/vampire/vampire_model.glb"));
+//
+    //
     // draw in wireframe
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 

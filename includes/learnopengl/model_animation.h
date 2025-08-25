@@ -103,6 +103,16 @@ private:
 			vertex.m_Weights[i] = 0.0f;
 		}
 	}
+    
+    void ClearVertex(Vertex& vertex)
+    {
+        memset(&vertex,0,sizeof(vertex));
+        for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+        {
+            vertex.m_BoneIDs[i] = -1;
+            vertex.m_Weights[i] = 0.0f;
+        }
+    }
 
 
 	Mesh processMesh(aiMesh* mesh, const aiScene* scene)
@@ -154,6 +164,11 @@ private:
 
 	void SetVertexBoneData(Vertex& vertex, int boneID, float weight)
 	{
+        if(weight==0)
+        {
+            return;
+        }
+        
 		for (int i = 0; i < MAX_BONE_INFLUENCE; ++i)
 		{
 			if (vertex.m_BoneIDs[i] < 0)
@@ -197,7 +212,10 @@ private:
 				int vertexId = weights[weightIndex].mVertexId;
 				float weight = weights[weightIndex].mWeight;
 				assert(vertexId <= vertices.size());
-				SetVertexBoneData(vertices[vertexId], boneID, weight);
+                if(weight != 0)
+                {
+                    SetVertexBoneData(vertices[vertexId], boneID, weight);
+                }
 			}
 		}
 	}
